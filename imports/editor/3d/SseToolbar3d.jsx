@@ -4,7 +4,7 @@ import SseToolbar from "../../common/SseToolbar";
 import SseBranding from "../../common/SseBranding";
 import {
     CircleOutline, FileDownloadOutline, Gesture, Minus, Plus, PlusMinus, Redo, SquareOutline,
-    Undo
+    Undo, Brush
 } from 'mdi-material-ui';
 
 export default class SseToolbar3d extends SseToolbar {
@@ -22,6 +22,7 @@ export default class SseToolbar3d extends SseToolbar {
         this.addCommand("selectorCommand", "Lasso Selector", 1, "H", "selector", Gesture, undefined, undefined);
         this.addCommand("rectangleCommand", "Rectangle Selector", 1, "J", "rectangle", SquareOutline, undefined, undefined);
         this.addCommand("circleCommand", "Circle Selector", 1, "K", "circle", CircleOutline, undefined, undefined);
+        this.addCommand("brushCommand", "Brush Selector", 1, "P", "brush", Brush, undefined, undefined);
 
         this.addCommand("selectionAddCommand", "Selection Mode: Add", 2, "Y", "selection-mode-add", Plus, undefined, undefined);
         this.addCommand("selectionToggleCommand", "Selection Mode: Toggle", 2, "U", "selection-mode-toggle", PlusMinus, undefined, undefined);
@@ -54,6 +55,7 @@ export default class SseToolbar3d extends SseToolbar {
                         {this.renderCommand("selectorCommand")}
                         {this.renderCommand("rectangleCommand")}
                         {this.renderCommand("circleCommand")}
+                        {this.renderCommand("brushCommand")}
                     </div>
                 </div>
                 <div className="vflex">

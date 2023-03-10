@@ -3,7 +3,7 @@ import React from 'react';
 import Slider from 'rc-slider';
 import {
     ArrowCollapseDown, ArrowCollapseLeft, ArrowCollapseRight, ArrowCollapseUp, ArrowExpandDown, Blur, BlurOff,
-    Brightness6, CubeSend, ImageFilterTiltShift, Rotate3D, Target, Video, Lightbulb, LightbulbOn
+    Brightness6, CubeSend, ImageFilterTiltShift, Rotate3D, Target, Video, Lightbulb, LightbulbOn, Brush
 } from 'mdi-material-ui';
 import SseToolbar from "../../common/SseToolbar";
 
@@ -13,6 +13,7 @@ export default class SseCameraToolbar extends SseToolbar {
         this.state = {
             colorBoostVisible: "none",
             pointSizeVisible: "none",
+            brushSizeVisible: "none",
             showRgbToggle: false
         };
         this.state.data = {
@@ -33,6 +34,7 @@ export default class SseCameraToolbar extends SseToolbar {
         this.addCommand("orientationCommand", "Pointcloud Orientation", false, "-", "orientation-change", Rotate3D, undefined, " ");
         this.addCommand("colorBoostCommand", "Color Intensity", 1, "-", "color-boost-toggle", Brightness6, undefined, " ");
         this.addCommand("pointSizeCommand", "Point Size", 1, "-", "point-size-toggle", ImageFilterTiltShift, undefined, " ");
+        this.addCommand("brushSizeCommand", "Brush Size", 1, "-", "brush-size-toggle", Brush, undefined, " ");
         this.addCommand("distanceAttenuationCommand", "Distance Attenuation", Blur, "", "distance-attenuation", BlurOff, undefined, undefined);
         this.addCommand("rgbCommand", "Toggle RGB", LightbulbOn, "+", "rgb-toggle", Lightbulb, undefined, undefined);
 
@@ -61,6 +63,15 @@ export default class SseCameraToolbar extends SseToolbar {
             this.setState({colorBoostVisible: "none"});
             this.setState({pointSizeVisible: this.state.pointSizeVisible == "none" ? "" : "none"});
         });
+        this.onMsg("brush-size-toggle", () => {
+            if (this.state.brushSizeVisible == "none") {
+                this.onMsg("mouse-down", () => {
+                    this.setState({brushSizeVisible: "none"});
+                    this.forgetMsg("mouse-down");
+                })
+            }
+            this.setState({brushSizeVisible: this.state.brushSizeVisible == "none" ? "" : "none"});
+        });
     }
 
     dataChange(filterName, dataMsg) {
@@ -87,6 +98,8 @@ export default class SseCameraToolbar extends SseToolbar {
             };
         const pointSizeSliderStyle =
             {display: this.state.pointSizeVisible, height: "150px", position: "absolute", left: "-30px", top: "-110px"};
+        const brushSizeSliderStyle =
+            {display: this.state.brushSizeVisible, height: "150px", position: "absolute", left: "-30px", top: "-110px"};
 
         return (
             <div className="vflex flex-justify-content-space-around sse-toolbar no-shrink">
@@ -103,8 +116,17 @@ export default class SseCameraToolbar extends SseToolbar {
                     {this.state.showRgbToggle ? this.renderCommand("rgbCommand") : null}
                     {this.renderCommand("distanceAttenuationCommand")}
                     <div className="relative">
-                        {this.renderCommand("pointSizeCommand")
-                        }
+                        {this.renderCommand("brushSizeCommand")}
+                        <Slider
+                            style={brushSizeSliderStyle}
+                            vertical={true}
+                            min={0}
+                            max={100}
+                            step={1}
+                            value={this.state.data.brushSize}
+                            onChange={this.dataChange('brushSize', "brush-size").bind(this)}
+                        />
+                        {this.renderCommand("pointSizeCommand")}
                         <Slider
                             style={pointSizeSliderStyle}
                             vertical={true}

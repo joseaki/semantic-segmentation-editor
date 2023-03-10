@@ -11,6 +11,7 @@ import PointInPoly from "point-in-polygon-extended";
 import TWEEN from "@tweenjs/tween.js";
 import Sse3dRectangleSelector from "./tools/Sse3dRectangleSelector";
 import Sse3dCircleSelector from "./tools/Sse3dCircleSelector";
+import Sse3dBrushSelector from "./tools/Sse3dBrushSelector";
 import SseDataManager from "../../common/SseDataManager";
 import Color from "color"
 import hull from "hull.js";
@@ -18,6 +19,7 @@ import PolyBool from "polybooljs";
 import lineclip from "lineclip";
 import SseMsg from "../../common/SseMsg";
 import $ from "jquery";
+import {Cursor} from "./Cursor";
 
 const PI = Math.PI;
 const DOUBLEPI = PI * 2;
@@ -40,7 +42,7 @@ export default class SseEditor3d extends React.Component {
         this.autoFocusMode = false;
         this.colorBoost = 0;
         this.orientationArrows = new Map();
-        this.state = {ready: false};
+        this.state = {ready: false, showBrush:false, brushSize: 5};
         this.screen = {};
         this.colorCache = new Map();
         this.pointSizeWithAttenuation = .03;
@@ -119,11 +121,16 @@ export default class SseEditor3d extends React.Component {
     }
 
     render() {
-        return (<div className="absoluteTopLeftZeroW100H100">
-                <canvas id="canvas3d" className="absoluteTopLeftZeroW100H100">
-                </canvas>
-                <canvas id="canvasSelection" className="absoluteTopLeftZeroW100H100"></canvas>
-                <canvas id="canvasMouse" className="absoluteTopLeftZeroW100H100"></canvas>
+        console.log(this.currentTool)
+        return (
+            <div>
+                <div className="absoluteTopLeftZeroW100H100">
+                    <canvas id="canvas3d" className="absoluteTopLeftZeroW100H100">
+                    </canvas>
+                    <canvas id="canvasSelection" className="absoluteTopLeftZeroW100H100"></canvas>
+                    <canvas id="canvasMouse" className="absoluteTopLeftZeroW100H100"></canvas>
+                </div>
+                {this.state.showBrush ? <Cursor size={this.state.brushSize}/> : null}
             </div>
         );
     }
@@ -306,6 +313,7 @@ export default class SseEditor3d extends React.Component {
     }
 
     unselectObject() {
+        console.log("HERE 1")
         this.selectedObject = undefined;
         this.sendMsg("object-select", {value: undefined});
         this.displayAll();
@@ -349,6 +357,28 @@ export default class SseEditor3d extends React.Component {
 
     componentDidMount() {
         SseMsg.register(this);
+
+        // this.cursorRounded = document.querySelector('.rounded');
+        // this.cursorRounded.style.width = `${this.brushSize}px`;
+        // this.cursorRounded.style.height = `${this.brushSize}px`;
+
+        // document.addEventListener("mousemove", (iev)=>{
+        //     const mouseX = iev.layerX;
+        //     const mouseY = iev.layerY;
+        //     const alpha = JSON.parse(JSON.stringify({
+        //         x: iev.layerX,
+        //         y: iev.layerY
+        //     }))
+        //     console.log(alpha.x - Math.floor(this.brushSize/2))
+        //     console.log(alpha.y - Math.floor(this.brushSize/2))
+        //     const translateX = alpha.x - Math.floor(this.brushSize/2);
+        //     const translateY = alpha.y - Math.floor(this.brushSize/2);
+
+        //     // document.getElementsByClassName("rounded")[0].style.transform = `translateX(${translateX}px) translateY(${translateY}px)`;
+        //     this.cursorRounded.style.top = `${translateY}px`;
+        //     this.cursorRounded.style.left = `${translateX}px`;
+        // })
+
         this.init();
         const changePointSize = (amount) => {
             const withAttenuation = {min: 0.01, max: .5, increment: 0.01};
@@ -363,7 +393,14 @@ export default class SseEditor3d extends React.Component {
             }
         };
 
+        const changeBrushSize = (amount) => {
+            this.setState({brushSize: amount})
+            // this.cursorRounded.style.width = `${this.brushSize}px`;
+            // this.cursorRounded.style.height = `${this.brushSize}px`;
+        }
+
         this.onMsg("point-size", (arg) => changePointSize(arg.value));
+        this.onMsg("brush-size", (arg) => changeBrushSize(arg.value));
 
         this.onMsg("distance-attenuation", (arg) => {
             const v = arg.value === "enabled";
@@ -392,9 +429,10 @@ export default class SseEditor3d extends React.Component {
             this.updateClassFilter(this.editingClassIndex);
         });
 
-        this.onMsg("selector", () => this.activateTool(this.selector));
-        this.onMsg("rectangle", () => this.activateTool(this.rectangleSelector));
-        this.onMsg("circle", () => this.activateTool(this.circleSelector));
+        this.onMsg("selector", () => this.activateTool(this.selector, "selector"));
+        this.onMsg("rectangle", () => this.activateTool(this.rectangleSelector, "rectangle"));
+        this.onMsg("circle", () => this.activateTool(this.circleSelector, "circle"));
+        this.onMsg("brush", () => this.activateTool(this.brushSelector, "brush"));
 
         this.onMsg("selection-mode-add", () => this.selectionMode = "add");
         this.onMsg("selection-mode-toggle", () => this.selectionMode = "toggle");
@@ -415,7 +453,7 @@ export default class SseEditor3d extends React.Component {
                 else {
                     this._classesData = null;
                     this.meta.socName = this.activeSoc.name;
-
+                    console.log("HERE 2")
                     this.invalidateColor();
                     this.displayAll();
                     this.saveMeta();
@@ -558,6 +596,8 @@ export default class SseEditor3d extends React.Component {
         $("body").on('contextmenu', () => {
             return false;
         });
+
+      
 
         this.mouse = new THREE.Vector2();
         this.mouse.dragged = 0;
@@ -818,7 +858,7 @@ export default class SseEditor3d extends React.Component {
         const outside = new Set();
         this.cloudData.forEach((pt, idx) => {
             const pixel = this.getPixel(pt);
-            if (this.visibleIndices.has(idx) && this.frustrumIndices.has(idx)) {
+            if (this.visibleIndices.has(idx)) {
                 const inPolygon = PointInPoly.pointInPolyWindingNumber([pixel.pixelX, pixel.pixelY], polygon);
                 if (inPolygon) {
                     inside.add(idx);
@@ -851,7 +891,8 @@ export default class SseEditor3d extends React.Component {
                     if (this.selection.size > 0) {
                         this.clearSelection();
                     } else {
-                        this.displayAll();
+                        console.log("HERE 3")
+                        // this.displayAll();
                     }
                 }
             }
@@ -1655,7 +1696,12 @@ export default class SseEditor3d extends React.Component {
         this.scene.add(bbo);
     }
 
-    activateTool(tool) {
+    activateTool(tool, type) {
+        if(type==="brush"){
+            this.setState({showBrush: true})
+        }else{
+            this.setState({showBrush: false})
+        }
         if (this.currentTool && this.currentTool.deactivate)
             this.currentTool.deactivate.bind(this.currentTool)();
         if (tool.activate)
@@ -1667,13 +1713,14 @@ export default class SseEditor3d extends React.Component {
         this.selector = new Sse3dLassoSelector(this);
         this.rectangleSelector = new Sse3dRectangleSelector(this);
         this.circleSelector = new Sse3dCircleSelector(this);
+        this.brushSelector = new Sse3dBrushSelector(this);
         this.canvasContainer.addEventListener("mousedown", this.mouseDown.bind(this), false);
         this.canvasContainer.addEventListener("mousemove", this.mouseMove.bind(this), false);
         this.canvasContainer.addEventListener("mouseup", this.mouseUp.bind(this), false);
         this.canvasContainer.addEventListener("wheel", this.mouseWheel.bind(this), false);
         $("body").on('keydown', this.keyDown.bind(this));
         $("body").on('keyup', this.keyUp.bind(this));
-        this.activateTool(this.selector);
+        this.activateTool(this.selector, "selector");
     }
 
     orbiterStart() {
@@ -1750,7 +1797,7 @@ export default class SseEditor3d extends React.Component {
             this.mouse.downY = ev.pageY;
             this.cameraPresetInfo = undefined;
             if (this.currentTool.mouseDown)
-                this.currentTool.mouseDown.bind(this.currentTool)(ev);
+                this.currentTool.mouseDown.bind(this.currentTool)(ev, this.state.brushSize);
             this.sendMsg("mouse-down", ev);
             this.invalidateCanvasMouse();
         }
@@ -1771,6 +1818,7 @@ export default class SseEditor3d extends React.Component {
         if (this.mouse.dragged < 4 && this.mouseTargetIndex == undefined
             && (ev.button != 1 && !this.ctrlDown)) {
             this.clearSelection();
+            console.log("HERE 4")
             this.displayAll();
         }
 
@@ -1836,8 +1884,8 @@ export default class SseEditor3d extends React.Component {
         this.mouse.y = -((ev.pageY - this.screen.top) / this.screen.height) * 2 + 1;
 
         if (this.currentTool.mouseMove)
-            this.currentTool.mouseMove.bind(this.currentTool)(ev);
-
+            this.currentTool.mouseMove.bind(this.currentTool)(ev, this.state.brushSize);
+        // console.log(ev)
         if (this.mouse.down)
             this.mouseDrag(ev);
         this.invalidateRaycasting();
@@ -1846,7 +1894,7 @@ export default class SseEditor3d extends React.Component {
 
     mouseDrag(ev) {
         if (this.currentTool.mouseDrag)
-            this.currentTool.mouseDrag.bind(this.currentTool)(ev);
+            this.currentTool.mouseDrag.bind(this.currentTool)(ev, this.state.brushSize);
         this.mouse.dragged++;
         this.sendMsg("mouse-drag", ev);
     }
@@ -1948,8 +1996,11 @@ export default class SseEditor3d extends React.Component {
                 }
             });
             const colorArray = [];
+            console.log("this.displayRgb", this.displayRgb)
             if(this.displayRgb){
+                console.log("AA")
                 if (rgbArray) {
+                    console.log("rgbArray", rgbArray)
                     rgbArray.forEach((v, i) => {
                         //this.cloudData[i].classIndex = v;
                         const rgb = v;
@@ -1958,7 +2009,9 @@ export default class SseEditor3d extends React.Component {
                 }
             }
             else{
+                console.log("BB")
                 if (labelArray) {
+                    console.log("labelArray", labelArray)
                     labelArray.forEach((v, i) => {
                         this.cloudData[i].classIndex = v;
                         const rgb = this.activeSoc.colorForIndexAsRGBArray(v);
@@ -1966,6 +2019,7 @@ export default class SseEditor3d extends React.Component {
                     });
                 }
             }
+            console.log(colorArray);
 
             geometry.setAttribute('position', new THREE.Float32BufferAttribute(positionArray, 3));
             geometry.setAttribute('color', new THREE.Float32BufferAttribute(colorArray, 3));
@@ -2014,7 +2068,7 @@ export default class SseEditor3d extends React.Component {
         const loader = new THREE.PCDLoader();
         return new Promise((res) => {
             loader.load(fileUrl, (arg) => {
-
+                console.log("ARGS", arg)
                 this.display(arg.object, arg.position, arg.label, arg.rgb);
                 Object.assign(this.meta, {header: arg.header});
                 res();
