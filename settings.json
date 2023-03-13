@@ -8,12 +8,13 @@
     {
       "name": "Fallas estructurales y superficiales en pavimentos asfaltados",
       "objects": [
+        {"label": "VOID", "color": "#CFCFCF"},
         {"label": "Hueco", "color": "#05f4ff", "icon": "GamepadCircleOutline"},
         {"label": "Cocodrilo", "color": "#003dce", "icon": "HexagonMultipleOutline"},
         {"label": "Vertical", "color": "#f105ff", "icon": "ReorderVertical"},
-        {"label": "Horizontal", "color": "#5fffad", "icon": "ReorderHorizontal"},
+        {"label": "Horizontal", "color": "#5fffad", "icon": "ReorderHorizontal"}
       ]
-    },
+    }
   ]
 }
 
